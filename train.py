@@ -5,19 +5,21 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from net import MyModel, AlexNet
+import os
 
 dml = torch_directml.device()
 
 # 训练轮数
-epochs = 150
-batch_size = 64
+epochs = 100
+batch_size = 32
 # 损失函数
 loss_function = torch.nn.CrossEntropyLoss()
 # 学习率
 learning_rate = 0.01
-learning_rate_after_100epoch = 0.001
+learning_rate_after_60epoch = 0.001
 
-
+# 模型存储路径
+model_dir = "model/"
 writer = SummaryWriter(log_dir='logs')
 
 transform = transforms.Compose([
@@ -55,15 +57,14 @@ print('train_size = {}, test_size = {}'.format(train_data_size, test_data_size))
 
 for epoch in range(epochs):
     print("训练轮数：{}/{}".format(epoch + 1, epochs))
+    if epoch == 60:
+        optimizer = SGD(myModel.parameters(), lr=learning_rate_after_60epoch)
     # 损失
     train_total_loss = 0.0
     test_total_loss = 0.0
     # 准确率
     train_total_acc = 0.0
     test_total_acc = 0.0
-
-    if epoch == 80:
-        optimizer = SGD(myModel.parameters(), lr=0.001)
 
     # 开始训练
     for data in train_data_loader:
@@ -89,9 +90,11 @@ for epoch in range(epochs):
         train_total_loss += loss.item()
         train_total_acc += acc
 
-    if ((epoch + 1) % 50) == 0:
+    if ((epoch + 1) % 10) == 0:
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
         # 保存模型
-        torch.save(myModel, 'model/CNN_model_{}.pth'.format(epoch + 1))
+        torch.save(myModel, model_dir + 'CNN_model_{}.pth'.format(epoch + 1))
 
     # 测试
     with torch.no_grad():
@@ -114,10 +117,12 @@ for epoch in range(epochs):
             test_total_loss += loss.item()
             test_total_acc += acc
 
-    print("train total loss:{},acc:{}  test total loss:{},acc:{}".format(train_total_loss, train_total_acc / train_data_size,
-                                                             test_total_loss, test_total_acc / test_data_size))
+    print("train total loss:{},acc:{}  test total loss:{},acc:{}".format(train_total_loss,
+                                                                         train_total_acc / train_data_size,
+                                                                         test_total_loss,
+                                                                         test_total_acc / test_data_size))
+    # 将训练过程保存下来
     writer.add_scalar('loss/train', train_total_loss, epoch + 1)
     writer.add_scalar('acc/train', train_total_acc / train_data_size, epoch + 1)
     writer.add_scalar('loss/test', test_total_loss, epoch + 1)
     writer.add_scalar('acc/test', test_total_acc / test_data_size, epoch + 1)
-
