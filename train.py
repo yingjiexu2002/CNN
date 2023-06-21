@@ -4,10 +4,19 @@ from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from net import MyModel
+from net import MyModel, AlexNet
 
 dml = torch_directml.device()
-# print(dml)
+
+# 训练轮数
+epochs = 150
+batch_size = 64
+# 损失函数
+loss_function = torch.nn.CrossEntropyLoss()
+# 学习率
+learning_rate = 0.01
+learning_rate_after_100epoch = 0.001
+
 
 writer = SummaryWriter(log_dir='logs')
 
@@ -21,11 +30,11 @@ train_data_set = datasets.CIFAR10('./dataset', train=True, transform=transform, 
 test_data_set = datasets.CIFAR10('./dataset', train=False, transform=transform, download=True)
 
 # 加载数据集
-train_data_loader = DataLoader(train_data_set, batch_size=64, shuffle=True)
-test_data_loader = DataLoader(test_data_set, batch_size=64, shuffle=True)
+train_data_loader = DataLoader(train_data_set, batch_size=batch_size, shuffle=True)
+test_data_loader = DataLoader(test_data_set, batch_size=batch_size, shuffle=True)
 
 # 定义网络
-myModel = MyModel()
+myModel = AlexNet()
 
 # 使用GPU
 use_gpu = torch.cuda.is_available()
@@ -36,13 +45,9 @@ else:
     print('Directml')
     myModel = myModel.to(dml)
 
-# 训练轮数
-epochs = 200
-# 损失函数
-loss_function = torch.nn.CrossEntropyLoss()
 # 优化器
-optimizer = SGD(myModel.parameters(), lr=0.01)
-# optimizer = Adam(myModel.parameters(), lr=0.01)
+optimizer = SGD(myModel.parameters(), lr=learning_rate)
+# optimizer = Adam(myModel.parameters(), lr=learning_rate)
 # 数据集大小
 train_data_size = len(train_data_set)
 test_data_size = len(test_data_set)
@@ -56,6 +61,9 @@ for epoch in range(epochs):
     # 准确率
     train_total_acc = 0.0
     test_total_acc = 0.0
+
+    if epoch == 80:
+        optimizer = SGD(myModel.parameters(), lr=0.001)
 
     # 开始训练
     for data in train_data_loader:
@@ -106,7 +114,7 @@ for epoch in range(epochs):
             test_total_loss += loss.item()
             test_total_acc += acc
 
-    print("train loss:{},acc:{}  test loss:{},acc:{}".format(train_total_loss, train_total_acc / train_data_size,
+    print("train total loss:{},acc:{}  test total loss:{},acc:{}".format(train_total_loss, train_total_acc / train_data_size,
                                                              test_total_loss, test_total_acc / test_data_size))
     writer.add_scalar('loss/train', train_total_loss, epoch + 1)
     writer.add_scalar('acc/train', train_total_acc / train_data_size, epoch + 1)
